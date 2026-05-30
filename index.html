@@ -2132,7 +2132,7 @@ function buildAvaPickers(){const e=$('avaEmoji'),c=$('avaColor');e.innerHTML='';
   AVACOLORS.forEach((col,i)=>{const o=document.createElement('div');o.className='opt'+(i===0?' sel':'');o.style.background=col;
     o.onclick=()=>{suAva.color=col;[...c.children].forEach(x=>x.classList.remove('sel'));o.classList.add('sel');};c.appendChild(o);});}
 function showAuthView(v){document.querySelectorAll('#authOverlay [data-av]').forEach(el=>el.style.display=el.dataset.av===v?'block':'none');}
-const DISCORD_INVITE_LINK='https://discord.gg/kgQda9eqYK';
+const DISCORD_INVITE_LINK='https://discord.gg/V6AWTCudTt';
 function showDiscordRequirementPopup(username){
   const key='discord_required_notice_'+username;
   try{
