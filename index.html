@@ -354,6 +354,14 @@
   .hint{color:var(--inkSoft);font-size:12.5px;text-align:center;margin-top:12px;font-weight:600}
   .hint kbd{background:#fff;border:2px solid var(--panelEdge);border-radius:8px;padding:1px 7px;
     font-family:'Baloo 2';font-weight:700;color:var(--wood3);box-shadow:0 2px 0 var(--panelEdge)}
+
+  .sendtoggle{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:10px;border:2px solid var(--pinkEdge);background:#ffe0ee;cursor:pointer;font-family:'Baloo 2';font-weight:800}
+  .sendbody.collapsed{display:none}
+  @media(max-width:768px){
+    .tbtn{min-width:84px}
+    .btns{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:6px}
+  }
+
 </style>
 </head>
 <body>
@@ -404,6 +412,7 @@
             <button class="btn alt" id="mAi"><span class="em">🤖</span>vs Computer</button>
             <button class="btn alt" id="mHost"><span class="em">🛡️</span>Host Online</button>
             <button class="btn alt" id="mJoin"><span class="em">🔌</span>Join Online</button>
+            <button class="btn alt" id="discordBtn"><span class="em">💬</span>Discord</button>
           </div>
           <div class="how">
             <b>How to play</b> — Pick a tower, click an open spot in <b>your lane (left)</b> to build. Click a tower to upgrade/sell. Spend in <b>Send</b> to attack the enemy and raise your <b>Eco</b> (passive income). Leaked balloons cost lives; first to 0 loses.
@@ -511,9 +520,9 @@
     </div>
     <div class="group send">
       <h3><span class="dot" style="background:var(--pink)"></span> Send Balloons &amp; Grow Eco
-        <span class="qcount" id="queueCount">0 / 5 queued</span></h3>
-      <div class="sendqueue" id="sendQueue"></div>
-      <div class="btns" id="sendbar"></div>
+        <span class="qcount" id="queueCount">0 / 5 queued</span><button class="sendtoggle" id="sendToggle">Hide</button></h3>
+      <div class="sendbody" id="sendBody"><div class="sendqueue" id="sendQueue"></div>
+      <div class="btns" id="sendbar"></div></div>
     </div>
     <div id="towerPanel">
       <div class="row hdr">
@@ -1980,14 +1989,22 @@ function canvasXY(e){const r=cv.getBoundingClientRect(),sx=W/r.width,sy=H/r.heig
   return{x:cx*sx,y:cy*sy};}
 cv.addEventListener('mousemove',e=>{if(!placing)return;const p=canvasXY(e);ghost.gx=p.x;ghost.gy=p.y;
   ghost.ok=p.x<DIVIDER&&validSpot(arenas[myKey],p.x,p.y,null)&&players[myKey].cash>=TOWERS[placing].cost;});
-cv.addEventListener('click',e=>{if(!running||over)return;const p=canvasXY(e);
+function handleCanvasPress(e){if(!running||over)return;const p=canvasXY(e);
   if(placing){if(p.x<DIVIDER&&validSpot(arenas[myKey],p.x,p.y,null)&&players[myKey].cash>=TOWERS[placing].cost){
     doLocalAction({a:'build',id:placing,x:p.x,y:p.y});sfx('place',1);}return;}
   if(p.x<DIVIDER){let pick=null,bd=26;for(const tw of arenas[myKey].towers){const d=dist(p.x,p.y,tw.x,tw.y);if(d<bd){bd=d;pick=tw;}}
-    if(pick){selUid=pick.uid;showTowerPanel();refreshTowerPanel();}else{selUid=null;hideTowerPanel();}}
-  else{selUid=null;hideTowerPanel();}});
+    if(pick){selUid=pick.uid;selTower=pick;showTowerPanel();refreshTowerPanel();}else{selUid=null;hideTowerPanel();}}
+  else{selUid=null;hideTowerPanel();}}
+cv.addEventListener('pointerdown',handleCanvasPress);
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){placing=null;selUid=null;markSel();hideTowerPanel();}});
 cv.addEventListener('contextmenu',e=>{e.preventDefault();placing=null;selUid=null;markSel();hideTowerPanel();});
+
+// ---------- ui ----------
+const sendToggle=$('sendToggle'),sendBody=$('sendBody');
+if(sendToggle&&sendBody){
+  sendToggle.onclick=()=>{sendBody.classList.toggle('collapsed');sendToggle.textContent=sendBody.classList.contains('collapsed')?'Show':'Hide';};
+  if(window.innerWidth<=768){sendBody.classList.add('collapsed');sendToggle.textContent='Show';}
+}
 
 // ---------- audio ----------
 let actx=null;
@@ -2115,6 +2132,16 @@ function buildAvaPickers(){const e=$('avaEmoji'),c=$('avaColor');e.innerHTML='';
   AVACOLORS.forEach((col,i)=>{const o=document.createElement('div');o.className='opt'+(i===0?' sel':'');o.style.background=col;
     o.onclick=()=>{suAva.color=col;[...c.children].forEach(x=>x.classList.remove('sel'));o.classList.add('sel');};c.appendChild(o);});}
 function showAuthView(v){document.querySelectorAll('#authOverlay [data-av]').forEach(el=>el.style.display=el.dataset.av===v?'block':'none');}
+const DISCORD_INVITE_LINK='https://discord.gg/kgQda9eqYK';
+function showDiscordRequirementPopup(username){
+  const key='discord_required_notice_'+username;
+  try{
+    if(localStorage.getItem(key)) return;
+    localStorage.setItem(key,'1');
+  }catch(_){}
+  alert('Joining the official Discord server is required if you want to send private match codes to other players and play against them online. Join here: '+DISCORD_INVITE_LINK);
+}
+
 function doSignUp(){
   const u=($('suUser').value||'').trim().toLowerCase(), disp=(($('suDisplay').value||'').trim()||$('suUser').value.trim()), p=$('suPass').value||'';
   const st=$('suStatus');st.className='status err';
@@ -2124,7 +2151,7 @@ function doSignUp(){
   const acc=loadAccounts(); if(acc[u]){st.textContent='That username already exists on this device.';return;}
   acc[u]={username:u,display:disp.slice(0,18),avatar:{emoji:suAva.emoji,color:suAva.color},
     pass:hashPass(u,p),stats:{wins:0,losses:0,games:0,bestRound:0},created:Date.now()};
-  saveAccounts(acc); loginAs(acc[u]); }
+  saveAccounts(acc); loginAs(acc[u]); showDiscordRequirementPopup(u); }
 function doSignIn(){
   const u=($('siUser').value||'').trim().toLowerCase(), p=$('siPass').value||'';
   const st=$('siStatus');st.className='status err';
@@ -2155,6 +2182,7 @@ function updateNameplates(){const mp=myProfile();
 $('toSignup')&&($('toSignup').onclick=()=>showAuthView('signup'));
 $('toSignin')&&($('toSignin').onclick=()=>showAuthView('signin'));
 $('siBtn').onclick=doSignIn; $('suBtn').onclick=doSignUp;
+$('discordBtn')&&($('discordBtn').onclick=()=>window.open(DISCORD_INVITE_LINK,'_blank'));
 $('siPass').addEventListener('keydown',e=>{if(e.key==='Enter')doSignIn();});
 $('suPass').addEventListener('keydown',e=>{if(e.key==='Enter')doSignUp();});
 $('userChip').onclick=()=>openProfile(myProfile(),true);
